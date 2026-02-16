@@ -17,29 +17,41 @@ import profileRoutes from './modules/profile/profile.routes.js';
 
 const app = express();
 
-// ─── Security Middleware ───────────────────────────────────────
+// ─── Security & Configuration ─────────────────────────────────
+app.set('trust proxy', 1); // Required for Vercel/Proxies
 app.use(helmet());
 
-// Better CORS handling (supports multiple origins)
+// Improved CORS handling
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = env.CORS_ORIGIN.split(',');
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      const allowedOrigins = env.CORS_ORIGIN.split(',').map(o => o.trim());
+      
+      // Auto-allow Vercel deployments (optional, good for preview)
+      if (origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
 
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        console.warn(`Blocked CORS origin: ${origin}`);
+        callback(new Error(`Not allowed by CORS: ${origin}`));
       }
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 );
 
 app.use(rateLimiter);
 
 // ─── Body Parsers ─────────────────────────────────────────────
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
