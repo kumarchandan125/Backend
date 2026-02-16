@@ -30,4 +30,9 @@ process.on('uncaughtException', (error: Error) => {
   process.exit(1);
 });
 
-start();
+// Only start server if run directly (local dev)
+if (process.env.NODE_ENV !== 'production' || require.main === module) {
+  start();
+}
+
+export default app;
