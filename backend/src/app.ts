@@ -17,23 +17,47 @@ import profileRoutes from './modules/profile/profile.routes.js';
 
 const app = express();
 
-// ─── Global Middleware ────────────────────────────────────────
+// ─── Security Middleware ───────────────────────────────────────
 app.use(helmet());
+
+// Better CORS handling (supports multiple origins)
 app.use(
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: (origin, callback) => {
+      const allowedOrigins = env.CORS_ORIGIN.split(',');
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   })
 );
+
 app.use(rateLimiter);
+
+// ─── Body Parsers ─────────────────────────────────────────────
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// ─── Static Files ─────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+// ─── Root Route (NEW) ─────────────────────────────────────────
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Inventrix Backend is Live 🚀',
+    environment: env.NODE_ENV,
+  });
+});
 
 // ─── Health Check ─────────────────────────────────────────────
 app.get('/api/v1/health', (_req, res) => {
-  res.json({
+  res.status(200).json({
     success: true,
     message: 'Inventrix API is running',
     timestamp: new Date().toISOString(),
@@ -57,7 +81,7 @@ app.use((_req, res) => {
   });
 });
 
-// ─── Error Handler (must be last) ─────────────────────────────
+// ─── Global Error Handler (must be last) ──────────────────────
 app.use(errorHandler);
 
 export default app;
